@@ -16,6 +16,7 @@ func main() {
 	maxpoints := 0
 	stringsMap := map[string][]int{}
 
+	// Копируем аргументы в отдельный массив
 	for i := range os.Args {
 		if i == 0 {
 			continue
@@ -23,11 +24,11 @@ func main() {
 		In = append(In, os.Args[i])
 	}
 
+	// Читаем из файла, полученные в прошлой работе данные и записываем из в отображение
 	data, err := ioutil.ReadFile("output.txt")
 	if err != nil {
 		fmt.Println(err)
 	}
-
 	datastrings := strings.Split(string(data), "\n")
 	for i := range datastrings {
 		if datastrings[i] == "" {
@@ -43,7 +44,7 @@ func main() {
 			}
 		}
 	}
-
+	// Получаем список файлов
 	for i := range ListOfFiles {
 		count := 0
 		for j := range In {
@@ -51,13 +52,12 @@ func main() {
 				count++
 			}
 		}
-
 		if count > maxpoints {
 			maxpoints = count
 		}
 		Out = append(Out, count)
 	}
-
+	// В порядке убывания количества совпадений выводим массив в stdout
 	i := maxpoints
 	for i != -1 {
 		for j := range Out {
@@ -67,9 +67,9 @@ func main() {
 		}
 		i--
 	}
-
 }
 
+// Имеется ли элемент в списке
 func contains(arr []int, element int) bool {
 	for _, a := range arr {
 		if a == element {
