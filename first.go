@@ -66,7 +66,7 @@ func main() {
 					IDs = append(IDs, strconv.Itoa(i))
 				}
 
-				n, err := outfile.WriteString(key + " : {" + strings.Join(IDs, ", ") + "}\n")
+				n, err := outfile.WriteString(key + ":" + strings.Join(IDs, ",") + "\n")
 
 				fmt.Println(n, err)
 
