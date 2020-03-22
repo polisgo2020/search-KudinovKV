@@ -1,0 +1,1 @@
+At least for me, this code is complicated. That being said, I think we can create a macro view of how maps are structured and grow. This should explain why they are unordered, efficient and fast.
