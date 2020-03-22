@@ -1,1 +1,1 @@
-it is what it is
+There are lots of posts that talk about the internals of slices, but when it comes to maps, we are left in the dark. I was wondering why and then I found the code for maps and it all made sense.
