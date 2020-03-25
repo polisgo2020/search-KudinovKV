@@ -2,8 +2,14 @@ package index
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/bbalet/stopwords"
+	file "github.com/polisgo2020/search-KudinovKV/file"
 )
 
 type InvertIndex map[string][]int
@@ -23,11 +29,9 @@ func Contains(arr []int, element int) bool {
 	return false
 }
 
-// ParseFile return slice of files and map
-func ParseFile(data string) ([]int, InvertIndex) {
+// ParseIndexFile added index in map and return slice of files
+func (index InvertIndex) ParseIndexFile(data string) []int {
 	var listOfFiles []int
-	var index InvertIndex
-	index = map[string][]int{}
 
 	datastrings := strings.Split(data, "\n")
 	for _, correctstring := range datastrings {
@@ -44,18 +48,19 @@ func ParseFile(data string) ([]int, InvertIndex) {
 			}
 		}
 	}
-	return listOfFiles, index
+	return listOfFiles
 }
 
-// MakeSearch find In string tokens in the index map
-func MakeSearch(In []string, listOfFiles []int, index InvertIndex) {
+// MakeSearch find in string tokens in the index map
+func (index InvertIndex) MakeSearch(in []string, listOfFiles []int) []int {
 	var out []int
+	var searchResult []int
 	maxpoints := 0
 
 	for i := range listOfFiles {
 		count := 0
-		for j := range In {
-			if ok := Contains(index[In[j]], listOfFiles[i]); ok {
+		for j := range in {
+			if ok := Contains(index[in[j]], listOfFiles[i]); ok {
 				count++
 			}
 		}
@@ -68,15 +73,31 @@ func MakeSearch(In []string, listOfFiles []int, index InvertIndex) {
 	for i != -1 {
 		for j := range out {
 			if out[j] == i {
-				fmt.Println(j+1, " file got ", out[j], " points !")
+				searchResult = append(searchResult, out[j])
 			}
 		}
 		i--
 	}
+	return searchResult
+}
+
+// MakeBuild read files and added token in the index map
+func (index InvertIndex) MakeBuild(dirname string, files []os.FileInfo) {
+	for i, f := range files {
+		data, err := file.ReadFile(filepath.Join(dirname, f.Name()))
+		if err != nil {
+			log.Fatalln(err)
+			continue
+		}
+		tokens := PrepareTokens(data)
+		for _, token := range tokens {
+			index.AddToken(token, i)
+		}
+	}
 }
 
 // AddToken add new token in map index
-func AddToken(index InvertIndex, token string, fileID int) {
+func (index InvertIndex) AddToken(token string, fileID int) {
 	_, ok := index[token]
 	b := Contains((index)[token], fileID)
 	if !ok || !b {
@@ -85,4 +106,14 @@ func AddToken(index InvertIndex, token string, fileID int) {
 		fmt.Println("Value: ", index[token])
 		fmt.Println()
 	}
+}
+
+// PrepareTokens remove space literaral and stopwords from data string , splited and translates to lower
+func PrepareTokens(data string) []string {
+	cleanSting := stopwords.CleanString(data, "en", true)
+	tokens := strings.Fields(cleanSting)
+	for i := range tokens {
+		tokens[i] = strings.ToLower(tokens[i])
+	}
+	return tokens
 }

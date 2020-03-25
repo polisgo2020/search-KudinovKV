@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"strings"
 
-	file "../file"
-	index "../index"
+	file "github.com/polisgo2020/search-KudinovKV/file"
+	index "github.com/polisgo2020/search-KudinovKV/index"
 )
 
 // parseArgs return slice of string with args
@@ -27,6 +29,7 @@ func main() {
 	}
 
 	in := parseArgs()
+	in = index.PrepareTokens(strings.Join(in, " "))
 
 	data, err := file.ReadFile(os.Args[1])
 	if err != nil {
@@ -34,6 +37,11 @@ func main() {
 		return
 	}
 
-	listOfFiles, maps := index.ParseFile(data)
-	index.MakeSearch(in, listOfFiles, maps)
+	maps := index.NewInvertIndex()
+	listOfFiles := maps.ParseIndexFile(data)
+	searchResult := maps.MakeSearch(in, listOfFiles)
+
+	for i, elem := range searchResult {
+		fmt.Println(i+1, " file got ", elem, " points !")
+	}
 }

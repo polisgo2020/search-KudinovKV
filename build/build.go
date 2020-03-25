@@ -1,28 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
-	file "../file"
-	index "../index"
-	"github.com/bbalet/stopwords"
+	file "github.com/polisgo2020/search-KudinovKV/file"
+	index "github.com/polisgo2020/search-KudinovKV/index"
 )
-
-// prepareTokens remove space literaral and stopwords from data string , splited and translates to lower
-func prepareTokens(data string) []string {
-	cleanSting := stopwords.CleanString(data, "en", true)
-	tokens := strings.Fields(cleanSting)
-	for i := range tokens {
-		tokens[i] = strings.ToLower(tokens[i])
-	}
-	return tokens
-}
 
 func main() {
 
@@ -38,18 +25,7 @@ func main() {
 		return
 	}
 
-	for i, f := range files {
-		fmt.Println(f.Name())
-		data, err := file.ReadFile(filepath.Join(os.Args[1], f.Name()))
-		if err != nil {
-			log.Fatalln(err)
-			continue
-		}
-		tokens := prepareTokens(data)
-		for _, token := range tokens {
-			index.AddToken(maps, token, i)
-		}
-	}
+	maps.MakeBuild(os.Args[1], files)
 
 	var resultString string
 	for key, value := range maps {
