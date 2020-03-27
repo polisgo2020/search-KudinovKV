@@ -5,11 +5,21 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
+	"sync"
 
-	file "github.com/polisgo2020/search-KudinovKV/file"
-	index "github.com/polisgo2020/search-KudinovKV/index"
+	"github.com/polisgo2020/search-KudinovKV/index"
 )
+
+// listener got tokens from cannel and added to maps
+func listener(dataCh <-chan []string, outputFilename string, maps index.InvertIndex, bufferMutex *sync.Mutex) {
+	for input := range dataCh {
+		token := input[0]
+		i, _ := strconv.Atoi(input[1])
+		bufferMutex.Lock()
+		maps.AddToken(token, i)
+		bufferMutex.Unlock()
+	}
+}
 
 func main() {
 
@@ -17,28 +27,29 @@ func main() {
 		log.Fatalln("Invalid number of arguments. Example of call: /path/to/files /path/to/output")
 	}
 
-	maps := index.NewInvertIndex()
-
 	files, err := ioutil.ReadDir(os.Args[1])
 	if err != nil {
 		log.Fatalln(err)
 		return
 	}
+	wg := &sync.WaitGroup{}
+	channelMutex := &sync.Mutex{}
+	bufferMutex := &sync.Mutex{}
+	maps := index.NewInvertIndex()
 
-	maps.MakeBuild(os.Args[1], files)
+	dataCh := make(chan []string)
+	defer close(dataCh)
 
-	var resultString string
-	for key, value := range maps {
-		var IDs []string
+	go listener(dataCh, os.Args[2], maps, bufferMutex)
 
-		for _, i := range value {
-			IDs = append(IDs, strconv.Itoa(i))
-		}
-		resultString += key + ":" + strings.Join(IDs, ",") + "\n"
+	for i, f := range files {
+		wg.Add(1)
+		go index.MakeBuild(os.Args[1], f, i, dataCh, wg, channelMutex)
 	}
 
-	err = file.WriteFile(resultString, os.Args[2])
-	if err != nil {
-		log.Fatalln(err)
-	}
+	wg.Wait()
+
+	bufferMutex.Lock()
+	maps.WriteResult(os.Args[2])
+	bufferMutex.Unlock()
 }

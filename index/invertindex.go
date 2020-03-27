@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/bbalet/stopwords"
-	file "github.com/polisgo2020/search-KudinovKV/file"
+	"github.com/polisgo2020/search-KudinovKV/file"
 )
 
 type InvertIndex map[string][]int
@@ -81,18 +82,39 @@ func (index InvertIndex) MakeSearch(in []string, listOfFiles []int) []int {
 	return searchResult
 }
 
-// MakeBuild read files and added token in the index map
-func (index InvertIndex) MakeBuild(dirname string, files []os.FileInfo) {
-	for i, f := range files {
-		data, err := file.ReadFile(filepath.Join(dirname, f.Name()))
-		if err != nil {
-			log.Fatalln(err)
-			continue
+// MakeBuild read files and added token in the cannel
+func MakeBuild(dirname string, f os.FileInfo, i int, out chan<- []string, wg *sync.WaitGroup, mutex *sync.Mutex) {
+	defer wg.Done()
+	data, err := file.ReadFile(filepath.Join(dirname, f.Name()))
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+	tokens := PrepareTokens(data)
+	for _, token := range tokens {
+		var info []string
+		info = append(info, token)
+		info = append(info, strconv.Itoa(i))
+		mutex.Lock()
+		out <- info
+		mutex.Unlock()
+	}
+}
+
+// WriteResult write maps in file
+func (index InvertIndex) WriteResult(outputFilename string) {
+	var resultString string
+	for key, value := range index {
+		var IDs []string
+
+		for _, i := range value {
+			IDs = append(IDs, strconv.Itoa(i))
 		}
-		tokens := PrepareTokens(data)
-		for _, token := range tokens {
-			index.AddToken(token, i)
-		}
+		resultString += key + ":" + strings.Join(IDs, ",") + "\n"
+	}
+	err := file.WriteFile(resultString, outputFilename)
+	if err != nil {
+		log.Fatalln(err)
 	}
 }
 
