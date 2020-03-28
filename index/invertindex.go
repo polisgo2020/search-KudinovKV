@@ -1,7 +1,6 @@
 package index
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -15,9 +14,20 @@ import (
 
 type InvertIndex map[string][]int
 
+// listener got tokens from cannel and added to maps
+func (index InvertIndex) listener(dataCh <-chan []string) {
+	for input := range dataCh {
+		token := input[0]
+		i, _ := strconv.Atoi(input[1])
+		index.AddToken(token, i)
+	}
+}
+
 // NewInvertIndex return empty InvertIndex
-func NewInvertIndex() InvertIndex {
-	return map[string][]int{}
+func NewInvertIndex(dataCh chan []string) InvertIndex {
+	index := InvertIndex{}
+	go index.listener(dataCh)
+	return index
 }
 
 // Contains check element in int array
@@ -83,21 +93,16 @@ func (index InvertIndex) MakeSearch(in []string, listOfFiles []int) []int {
 }
 
 // MakeBuild read files and added token in the cannel
-func MakeBuild(dirname string, f os.FileInfo, i int, out chan<- []string, wg *sync.WaitGroup, mutex *sync.Mutex) {
+func MakeBuild(dirname string, f os.FileInfo, i int, out chan<- []string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	data, err := file.ReadFile(filepath.Join(dirname, f.Name()))
 	if err != nil {
 		log.Fatalln(err)
-		return
 	}
 	tokens := PrepareTokens(data)
 	for _, token := range tokens {
-		var info []string
-		info = append(info, token)
-		info = append(info, strconv.Itoa(i))
-		mutex.Lock()
+		info := []string{token, strconv.Itoa(i)}
 		out <- info
-		mutex.Unlock()
 	}
 }
 
@@ -124,9 +129,9 @@ func (index InvertIndex) AddToken(token string, fileID int) {
 	b := Contains((index)[token], fileID)
 	if !ok || !b {
 		index[token] = append(index[token], fileID)
-		fmt.Println("Token : ", token)
-		fmt.Println("Value: ", index[token])
-		fmt.Println()
+		log.Println("Token : ", token)
+		log.Println("Value: ", index[token])
+		log.Println()
 	}
 }
 
