@@ -21,10 +21,12 @@ func main() {
 		return
 	}
 	wg := &sync.WaitGroup{}
+	bufferMutex := &sync.Mutex{}
 
 	dataCh := make(chan []string)
 
-	maps := index.NewInvertIndex(dataCh)
+	maps := index.NewInvertIndex()
+	go maps.Listener(dataCh, bufferMutex)
 
 	for i, f := range files {
 		wg.Add(1)
@@ -33,6 +35,7 @@ func main() {
 
 	wg.Wait()
 	close(dataCh)
-
+	bufferMutex.Lock()
 	maps.WriteResult(os.Args[2])
+	bufferMutex.Unlock()
 }

@@ -14,19 +14,20 @@ import (
 
 type InvertIndex map[string][]int
 
-// listener got tokens from cannel and added to maps
-func (index InvertIndex) listener(dataCh <-chan []string) {
+// Listener got tokens from cannel and added to maps
+func (index InvertIndex) Listener(dataCh <-chan []string, mutex *sync.Mutex) {
+	mutex.Lock()
 	for input := range dataCh {
 		token := input[0]
 		i, _ := strconv.Atoi(input[1])
 		index.AddToken(token, i)
 	}
+	mutex.Unlock()
 }
 
 // NewInvertIndex return empty InvertIndex
-func NewInvertIndex(dataCh chan []string) InvertIndex {
+func NewInvertIndex() InvertIndex {
 	index := InvertIndex{}
-	go index.listener(dataCh)
 	return index
 }
 
