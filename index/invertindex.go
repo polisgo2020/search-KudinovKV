@@ -20,7 +20,7 @@ func (index InvertIndex) Listener(dataCh <-chan []string, mutex *sync.Mutex) {
 	for input := range dataCh {
 		token := input[0]
 		i, _ := strconv.Atoi(input[1])
-		index.AddToken(token, i)
+		index.addToken(token, i)
 	}
 	mutex.Unlock()
 }
@@ -102,8 +102,7 @@ func MakeBuild(dirname string, f os.FileInfo, i int, out chan<- []string, wg *sy
 	}
 	tokens := PrepareTokens(data)
 	for _, token := range tokens {
-		info := []string{token, strconv.Itoa(i)}
-		out <- info
+		out <- []string{token, strconv.Itoa(i)}
 	}
 }
 
@@ -124,10 +123,10 @@ func (index InvertIndex) WriteResult(outputFilename string) {
 	}
 }
 
-// AddToken add new token in map index
-func (index InvertIndex) AddToken(token string, fileID int) {
+// addToken add new token in index map
+func (index InvertIndex) addToken(token string, fileID int) {
 	_, ok := index[token]
-	b := Contains((index)[token], fileID)
+	b := Contains(index[token], fileID)
 	if !ok || !b {
 		index[token] = append(index[token], fileID)
 		log.Println("Token : ", token)
