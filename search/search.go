@@ -3,45 +3,62 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
-	"strings"
+	"time"
 
-	file "github.com/polisgo2020/search-KudinovKV/file"
-	index "github.com/polisgo2020/search-KudinovKV/index"
+	"github.com/polisgo2020/search-KudinovKV/file"
+	"github.com/polisgo2020/search-KudinovKV/index"
 )
 
-// parseArgs return slice of string with args
-func parseArgs() []string {
-	var in []string
+var (
+	maps        index.InvertIndex
+	listOfFiles []int
+)
 
-	for i := range os.Args {
-		if i == 0 || i == 1 {
-			continue
-		}
-		in = append(in, os.Args[i])
+func handler(w http.ResponseWriter, r *http.Request) {
+	//fmt.Fprintln(w, "URL:", r.URL.String())
+
+	tokens := r.FormValue("tokens")
+	if tokens == "" {
+		fmt.Fprintln(w, "Incorrect request! Example : ip:port/?param=tokens to search with space.")
+		return
 	}
-	return in
+
+	in := index.PrepareTokens(tokens)
+	searchResult := maps.MakeSearch(in, listOfFiles)
+
+	for i, elem := range searchResult {
+		fmt.Fprintln(w, i+1, " file got ", elem, " points !")
+	}
 }
 
 func main() {
-	if len(os.Args) < 3 {
-		log.Fatalln("Invalid number of arguments. Example of call: /path/to/index/file tokens-to-search")
+	if len(os.Args) < 4 {
+		log.Fatalln("Invalid number of arguments. Example of call: /path/to/index/file ip-address port")
 	}
 
-	in := parseArgs()
-	in = index.PrepareTokens(strings.Join(in, " "))
+	ip := os.Args[2]
+	port := os.Args[3]
+	mux := http.NewServeMux()
 
 	data, err := file.ReadFile(os.Args[1])
 	if err != nil {
 		log.Fatalln(err)
-		return
 	}
 
-	maps := index.NewInvertIndex()
-	listOfFiles := maps.ParseIndexFile(data)
-	searchResult := maps.MakeSearch(in, listOfFiles)
+	maps = index.NewInvertIndex()
+	listOfFiles = maps.ParseIndexFile(data)
 
-	for i, elem := range searchResult {
-		fmt.Println(i+1, " file got ", elem, " points !")
+	mux.HandleFunc("/", handler)
+
+	server := http.Server{
+		Addr:         ip + ":" + port,
+		Handler:      mux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
+
+	log.Println("starting server at ", ip, ":", port)
+	server.ListenAndServe()
 }

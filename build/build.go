@@ -18,7 +18,6 @@ func main() {
 	files, err := ioutil.ReadDir(os.Args[1])
 	if err != nil {
 		log.Fatalln(err)
-		return
 	}
 	wg := &sync.WaitGroup{}
 	bufferMutex := &sync.Mutex{}
