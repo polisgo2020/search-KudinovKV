@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	maps        index.InvertIndex
+	i           *index.InvertIndex
 	listOfFiles []int
 )
 
@@ -127,10 +127,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	in := index.PrepareTokens(tokens)
-	searchResult := maps.MakeSearch(in, listOfFiles)
+	out := i.MakeSearch(in, listOfFiles)
 	resultString := string("				<ol class=\"rounded\">")
-	for i, elem := range searchResult {
-		resultString += "<li><a href=\"#\">" + strconv.Itoa(int(i)) + " file got " + strconv.Itoa(int(elem)) + " points !</a></li>"
+	for _, element := range out {
+		fileID, countMatch := element.GetRateFields()
+		resultString += "<li><a href=\"#\">" + strconv.Itoa(fileID) + " file got " + strconv.Itoa(countMatch) + " points !</a></li>"
 	}
 	resultString += "				</ol>"
 	htmlPage = fmt.Sprintf(htmlPage, resultString)
@@ -151,8 +152,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	maps = index.NewInvertIndex()
-	listOfFiles = maps.ParseIndexFile(data)
+	i = index.NewInvertIndex()
+	listOfFiles = i.ParseIndexFile(data)
 
 	mux.HandleFunc("/", handler)
 
@@ -163,6 +164,6 @@ func main() {
 		WriteTimeout: 10 * time.Second,
 	}
 
-	log.Println("starting server at ", ip, ":", port)
+	log.Println("[ + ] starting server at ", ip, ":", port)
 	server.ListenAndServe()
 }

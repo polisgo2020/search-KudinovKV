@@ -2,13 +2,12 @@ package index
 
 import (
 	"reflect"
-	"sync"
 	"testing"
 )
 
 var (
-	i           InvertIndex
-	in          InvertIndex
+	i           *InvertIndex
+	in          *InvertIndex
 	listOfFiles []int
 )
 
@@ -42,7 +41,7 @@ func TestParseIndexFile(t *testing.T) {
 }
 func TestMakeSearch(t *testing.T) {
 	in := []string{"banana", "is"}
-	expected := []int{2, 1, 1}
+	expected := []Rate{{2, 2}, {0, 1}, {1, 1}}
 	actual := i.MakeSearch(in, listOfFiles)
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("%v is not equal to expected %v", actual, expected)
@@ -60,27 +59,26 @@ func TestPrepareTokens(t *testing.T) {
 
 func TestAddToken(t *testing.T) {
 	expected := NewInvertIndex()
-	expected["newtoken"] = append(expected["newtoken"], 1)
+	(*expected).index["newtoken"] = append((*expected).index["newtoken"], 1)
 	in.addToken("newtoken", 1)
-	if !reflect.DeepEqual(in["newtoken"], expected["newtoken"]) {
+	if !reflect.DeepEqual((*in).index["newtoken"], (*expected).index["newtoken"]) {
 		t.Errorf("%v is not equal to expected %v", in, expected)
 	}
 }
 
 func TestListener(t *testing.T) {
-	dataCh := make(chan []string)
-	mutex := &sync.Mutex{}
-
 	expected := NewInvertIndex()
-	expected["newtoken"] = append(expected["newtoken"], 1)
-	expected["newtoken"] = append(expected["newtoken"], 2)
+	(*expected).index["newtoken"] = append((*expected).index["newtoken"], 1)
+	(*expected).index["newtoken"] = append((*expected).index["newtoken"], 2)
 
-	go in.Listener(dataCh, mutex)
-	dataCh <- []string{"newtoken", "2"}
-	close(dataCh)
-	mutex.Lock()
-	if !reflect.DeepEqual(in["newtoken"], expected["newtoken"]) {
-		t.Errorf("%v is not equal to expected %v", in, expected)
+	in.dataCh <- []string{"newtoken", "2"}
+	close(in.dataCh)
+	in.mutex.Lock()
+	if !reflect.DeepEqual((*in).index["newtoken"], (*expected).index["newtoken"]) {
+		t.Errorf("%v is not equal to expected %v", *in, *expected)
 	}
-	mutex.Unlock()
+	in.mutex.Unlock()
+
+	close(expected.dataCh)
+	close(i.dataCh)
 }
