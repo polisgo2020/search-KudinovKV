@@ -4,11 +4,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strconv"
-	"strings"
+	"sync"
 
-	file "github.com/polisgo2020/search-KudinovKV/file"
-	index "github.com/polisgo2020/search-KudinovKV/index"
+	"github.com/polisgo2020/search-KudinovKV/index"
 )
 
 func main() {
@@ -17,28 +15,27 @@ func main() {
 		log.Fatalln("Invalid number of arguments. Example of call: /path/to/files /path/to/output")
 	}
 
-	maps := index.NewInvertIndex()
-
 	files, err := ioutil.ReadDir(os.Args[1])
 	if err != nil {
 		log.Fatalln(err)
 		return
 	}
+	wg := &sync.WaitGroup{}
+	bufferMutex := &sync.Mutex{}
 
-	maps.MakeBuild(os.Args[1], files)
+	dataCh := make(chan []string)
 
-	var resultString string
-	for key, value := range maps {
-		var IDs []string
+	maps := index.NewInvertIndex()
+	go maps.Listener(dataCh, bufferMutex)
 
-		for _, i := range value {
-			IDs = append(IDs, strconv.Itoa(i))
-		}
-		resultString += key + ":" + strings.Join(IDs, ",") + "\n"
+	for i, f := range files {
+		wg.Add(1)
+		go index.MakeBuild(os.Args[1], f, i, dataCh, wg)
 	}
 
-	err = file.WriteFile(resultString, os.Args[2])
-	if err != nil {
-		log.Fatalln(err)
-	}
+	wg.Wait()
+	close(dataCh)
+	bufferMutex.Lock()
+	maps.WriteResult(os.Args[2])
+	bufferMutex.Unlock()
 }

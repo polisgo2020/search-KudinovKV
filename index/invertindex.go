@@ -1,22 +1,34 @@
 package index
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/bbalet/stopwords"
-	file "github.com/polisgo2020/search-KudinovKV/file"
+	"github.com/polisgo2020/search-KudinovKV/file"
 )
 
 type InvertIndex map[string][]int
 
+// Listener got tokens from cannel and added to maps
+func (index InvertIndex) Listener(dataCh <-chan []string, mutex *sync.Mutex) {
+	mutex.Lock()
+	for input := range dataCh {
+		token := input[0]
+		i, _ := strconv.Atoi(input[1])
+		index.AddToken(token, i)
+	}
+	mutex.Unlock()
+}
+
 // NewInvertIndex return empty InvertIndex
 func NewInvertIndex() InvertIndex {
-	return map[string][]int{}
+	index := InvertIndex{}
+	return index
 }
 
 // Contains check element in int array
@@ -81,18 +93,34 @@ func (index InvertIndex) MakeSearch(in []string, listOfFiles []int) []int {
 	return searchResult
 }
 
-// MakeBuild read files and added token in the index map
-func (index InvertIndex) MakeBuild(dirname string, files []os.FileInfo) {
-	for i, f := range files {
-		data, err := file.ReadFile(filepath.Join(dirname, f.Name()))
-		if err != nil {
-			log.Fatalln(err)
-			continue
+// MakeBuild read files and added token in the cannel
+func MakeBuild(dirname string, f os.FileInfo, i int, out chan<- []string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	data, err := file.ReadFile(filepath.Join(dirname, f.Name()))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	tokens := PrepareTokens(data)
+	for _, token := range tokens {
+		info := []string{token, strconv.Itoa(i)}
+		out <- info
+	}
+}
+
+// WriteResult write maps in file
+func (index InvertIndex) WriteResult(outputFilename string) {
+	var resultString string
+	for key, value := range index {
+		var IDs []string
+
+		for _, i := range value {
+			IDs = append(IDs, strconv.Itoa(i))
 		}
-		tokens := PrepareTokens(data)
-		for _, token := range tokens {
-			index.AddToken(token, i)
-		}
+		resultString += key + ":" + strings.Join(IDs, ",") + "\n"
+	}
+	err := file.WriteFile(resultString, outputFilename)
+	if err != nil {
+		log.Fatalln(err)
 	}
 }
 
@@ -102,9 +130,9 @@ func (index InvertIndex) AddToken(token string, fileID int) {
 	b := Contains((index)[token], fileID)
 	if !ok || !b {
 		index[token] = append(index[token], fileID)
-		fmt.Println("Token : ", token)
-		fmt.Println("Value: ", index[token])
-		fmt.Println()
+		log.Println("Token : ", token)
+		log.Println("Value: ", index[token])
+		log.Println()
 	}
 }
 
