@@ -15,10 +15,7 @@ import (
 var (
 	i           *index.InvertIndex
 	listOfFiles []int
-)
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	styleHTML := `
+	styleHTML   = `
 	<!DOCTYPE html>
 	<html lang="en">
 	<head>
@@ -108,7 +105,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		transition: all .3s ease-out;
 	}
 	</style>`
-	htmlPage := `
+	htmlPage = `
 	<body>
 		<div class="container-contact100">
 			<div class="wrap-contact100">
@@ -119,23 +116,26 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		</div>
 	</body>
 	</html>`
+)
+
+func handler(w http.ResponseWriter, r *http.Request) {
 	tokens := r.URL.Query().Get("tokens")
 	if tokens == "" {
-		htmlPage = fmt.Sprintf(htmlPage, "Incorrect request!<br>Example: <i>ip:port/?param=tokens to search with space</i>")
-		fmt.Fprintln(w, styleHTML, htmlPage)
+		errorPage := fmt.Sprintf(htmlPage, "Incorrect request!<br>Example: <i>ip:port/?tokens=tokens to search with space</i>")
+		fmt.Fprintln(w, styleHTML, errorPage)
 		return
 	}
 
 	in := index.PrepareTokens(tokens)
 	out := i.MakeSearch(in, listOfFiles)
-	resultString := string("				<ol class=\"rounded\">")
+	resultString := `<ol class="rounded">`
 	for _, element := range out {
 		fileID, countMatch := element.GetRateFields()
 		resultString += "<li><a href=\"#\">" + strconv.Itoa(fileID) + " file got " + strconv.Itoa(countMatch) + " points !</a></li>"
 	}
-	resultString += "				</ol>"
-	htmlPage = fmt.Sprintf(htmlPage, resultString)
-	fmt.Fprintln(w, styleHTML, htmlPage)
+	resultString += "</ol>"
+	resultPage := fmt.Sprintf(htmlPage, resultString)
+	fmt.Fprintln(w, styleHTML, resultPage)
 }
 
 func main() {
