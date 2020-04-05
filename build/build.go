@@ -10,32 +10,19 @@ import (
 )
 
 func main() {
-
 	if len(os.Args) < 3 {
 		log.Fatalln("Invalid number of arguments. Example of call: /path/to/files /path/to/output")
 	}
-
 	files, err := ioutil.ReadDir(os.Args[1])
 	if err != nil {
 		log.Fatalln(err)
-		return
 	}
 	wg := &sync.WaitGroup{}
-	bufferMutex := &sync.Mutex{}
-
-	dataCh := make(chan []string)
-
 	maps := index.NewInvertIndex()
-	go maps.Listener(dataCh, bufferMutex)
-
-	for i, f := range files {
+	for _, f := range files {
 		wg.Add(1)
-		go index.MakeBuild(os.Args[1], f, i, dataCh, wg)
+		go maps.MakeBuild(os.Args[1], f, wg)
 	}
-
 	wg.Wait()
-	close(dataCh)
-	bufferMutex.Lock()
 	maps.WriteResult(os.Args[2])
-	bufferMutex.Unlock()
 }
