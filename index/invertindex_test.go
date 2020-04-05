@@ -8,7 +8,7 @@ import (
 var (
 	i           *InvertIndex
 	in          *InvertIndex
-	listOfFiles []int
+	listOfFiles []string
 )
 
 func init() {
@@ -17,22 +17,22 @@ func init() {
 }
 
 func TestContains(t *testing.T) {
-	in := []int{0, -500, 1, 2, -1}
-	actual := Contains(in, 1)
+	in := []string{"abc", "test", "hello", "world"}
+	actual := Contains(in, "test")
 	expected := true
 	if expected != actual {
 		t.Errorf("%v is not equal to expected %v", actual, expected)
 	}
 	expected = false
-	actual = Contains(in, 10)
+	actual = Contains(in, "abctest")
 	if expected != actual {
 		t.Errorf("%v is not equal to expected %v", actual, expected)
 	}
 }
 
 func TestParseIndexFile(t *testing.T) {
-	in := string("is:0,1,2\na:2\nbanana:2\nit:0,1,2\nwhat:0,1\n")
-	expected := []int{0, 1, 2}
+	in := string("is:0.txt,1.txt,2.txt\na:2.txt\nbanana:2.txt\nit:0.txt,1.txt,2.txt\nwhat:0.txt,1.txt\n")
+	expected := []string{"0.txt", "1.txt", "2.txt"}
 	actual := i.ParseIndexFile(in)
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("%v is not equal to expected %v", actual, expected)
@@ -41,7 +41,7 @@ func TestParseIndexFile(t *testing.T) {
 }
 func TestMakeSearch(t *testing.T) {
 	in := []string{"banana", "is"}
-	expected := []Rate{{2, 2}, {0, 1}, {1, 1}}
+	expected := []Rate{{"2.txt", 2}, {"0.txt", 1}, {"1.txt", 1}}
 	actual := i.MakeSearch(in, listOfFiles)
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("%v is not equal to expected %v", actual, expected)
@@ -59,8 +59,8 @@ func TestPrepareTokens(t *testing.T) {
 
 func TestAddToken(t *testing.T) {
 	expected := NewInvertIndex()
-	(*expected).index["newtoken"] = append((*expected).index["newtoken"], 1)
-	in.addToken("newtoken", 1)
+	(*expected).index["newtoken"] = append((*expected).index["newtoken"], "1.txt")
+	in.addToken("newtoken", "1.txt")
 	if !reflect.DeepEqual((*in).index["newtoken"], (*expected).index["newtoken"]) {
 		t.Errorf("%v is not equal to expected %v", in, expected)
 	}
@@ -68,8 +68,8 @@ func TestAddToken(t *testing.T) {
 
 func TestListener(t *testing.T) {
 	expected := NewInvertIndex()
-	(*expected).index["newtoken"] = append((*expected).index["newtoken"], 1)
-	(*expected).index["newtoken"] = append((*expected).index["newtoken"], 2)
+	(*expected).index["newtoken"] = append((*expected).index["newtoken"], "1.txt")
+	(*expected).index["newtoken"] = append((*expected).index["newtoken"], "2.txt")
 
 	in.dataCh <- []string{"newtoken", "2"}
 	close(in.dataCh)

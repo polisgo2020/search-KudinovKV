@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -14,19 +13,19 @@ import (
 )
 
 type InvertIndex struct {
-	index  map[string][]int
+	index  map[string][]string
 	dataCh chan []string
 	mutex  *sync.Mutex
 }
 
 type Rate struct {
-	fileID     int
+	fileName   string
 	countMatch int
 }
 
 // GetRateFields return fields struct Rate
-func (r Rate) GetRateFields() (fileID, countMatch int) {
-	return r.fileID, r.countMatch
+func (r Rate) GetRateFields() (fileName string, countMatch int) {
+	return r.fileName, r.countMatch
 }
 
 // Listener got tokens from cannel and added to maps
@@ -34,16 +33,14 @@ func (i InvertIndex) Listener() {
 	defer i.mutex.Unlock()
 	i.mutex.Lock()
 	for input := range i.dataCh {
-		token := input[0]
-		k, _ := strconv.Atoi(input[1])
-		i.addToken(token, k)
+		i.addToken(input[0], input[1])
 	}
 }
 
 // NewInvertIndex return empty InvertIndex and start listener gorutine
 func NewInvertIndex() *InvertIndex {
 	i := InvertIndex{
-		index:  map[string][]int{},
+		index:  map[string][]string{},
 		dataCh: make(chan []string),
 		mutex:  &sync.Mutex{},
 	}
@@ -52,7 +49,7 @@ func NewInvertIndex() *InvertIndex {
 }
 
 // Contains check element in int array
-func Contains(arr []int, element int) bool {
+func Contains(arr []string, element string) bool {
 	for _, a := range arr {
 		if a == element {
 			return true
@@ -62,8 +59,8 @@ func Contains(arr []int, element int) bool {
 }
 
 // ParseIndexFile added index in map and return slice of files
-func (i InvertIndex) ParseIndexFile(data string) []int {
-	var listOfFiles []int
+func (i InvertIndex) ParseIndexFile(data string) []string {
+	var listOfFiles []string
 
 	datastrings := strings.Split(data, "\n")
 	for _, correctstring := range datastrings {
@@ -73,29 +70,28 @@ func (i InvertIndex) ParseIndexFile(data string) []int {
 		keys := strings.Split(correctstring, ":")
 		values := strings.Split(keys[1], ",")
 		for _, value := range values {
-			number, _ := strconv.Atoi(value)
-			i.index[keys[0]] = append(i.index[keys[0]], number)
-			if ok := Contains(listOfFiles, number); !ok {
-				listOfFiles = append(listOfFiles, number)
+			i.index[keys[0]] = append(i.index[keys[0]], value)
+			if ok := Contains(listOfFiles, value); !ok {
+				listOfFiles = append(listOfFiles, value)
 			}
 		}
 	}
-	sort.Ints(listOfFiles)
+	//sort.Ints(listOfFiles)
 	return listOfFiles
 }
 
 // MakeSearch find in string tokens in the index map
-func (i InvertIndex) MakeSearch(in []string, listOfFiles []int) []Rate {
+func (i InvertIndex) MakeSearch(in []string, listOfFiles []string) []Rate {
 	out := []Rate{}
 
-	for k := range listOfFiles {
+	for k, filename := range listOfFiles {
 		count := 0
 		for j := range in {
 			if ok := Contains(i.index[in[j]], listOfFiles[k]); ok {
 				count++
 			}
 		}
-		out = append(out, Rate{fileID: k, countMatch: count})
+		out = append(out, Rate{fileName: filename, countMatch: count})
 	}
 
 	sort.Slice(out, func(i, j int) bool {
@@ -105,7 +101,7 @@ func (i InvertIndex) MakeSearch(in []string, listOfFiles []int) []Rate {
 }
 
 // MakeBuild read files and added token in the cannel
-func (i InvertIndex) MakeBuild(dirname string, f os.FileInfo, fileID int, wg *sync.WaitGroup) {
+func (i InvertIndex) MakeBuild(dirname string, f os.FileInfo, wg *sync.WaitGroup) {
 	defer wg.Done()
 	data, err := file.ReadFile(filepath.Join(dirname, f.Name()))
 	if err != nil {
@@ -113,7 +109,7 @@ func (i InvertIndex) MakeBuild(dirname string, f os.FileInfo, fileID int, wg *sy
 	}
 	tokens := PrepareTokens(data)
 	for _, token := range tokens {
-		i.dataCh <- []string{token, strconv.Itoa(fileID)}
+		i.dataCh <- []string{token, f.Name()}
 	}
 }
 
@@ -124,12 +120,11 @@ func (i InvertIndex) WriteResult(outputFilename string) {
 	i.mutex.Lock()
 	var resultString string
 	for key, value := range i.index {
-		var IDs []string
-
-		for _, i := range value {
-			IDs = append(IDs, strconv.Itoa(i))
+		var fileNames []string
+		for _, filename := range value {
+			fileNames = append(fileNames, filename)
 		}
-		resultString += key + ":" + strings.Join(IDs, ",") + "\n"
+		resultString += key + ":" + strings.Join(fileNames, ",") + "\n"
 	}
 	err := file.WriteFile(resultString, outputFilename)
 	if err != nil {
@@ -138,12 +133,12 @@ func (i InvertIndex) WriteResult(outputFilename string) {
 }
 
 // addToken add new token in index map
-func (i InvertIndex) addToken(token string, fileID int) {
+func (i InvertIndex) addToken(token, fileName string) {
 	_, ok := i.index[token]
-	b := Contains(i.index[token], fileID)
+	b := Contains(i.index[token], fileName)
 	if !ok || !b {
-		i.index[token] = append(i.index[token], fileID)
-		log.Println("Token : ", token)
+		i.index[token] = append(i.index[token], fileName)
+		log.Println("Token: ", token)
 		log.Println("Value: ", i.index[token])
 		log.Println()
 	}

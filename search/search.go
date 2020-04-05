@@ -14,7 +14,7 @@ import (
 
 var (
 	i           *index.InvertIndex
-	listOfFiles []int
+	listOfFiles []string
 	styleHTML   = `
 	<!DOCTYPE html>
 	<html lang="en">
@@ -125,13 +125,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, styleHTML, errorPage)
 		return
 	}
-
 	in := index.PrepareTokens(tokens)
 	out := i.MakeSearch(in, listOfFiles)
 	resultString := `<ol class="rounded">`
 	for _, element := range out {
-		fileID, countMatch := element.GetRateFields()
-		resultString += "<li><a href=\"#\">" + strconv.Itoa(fileID) + " file got " + strconv.Itoa(countMatch) + " points !</a></li>"
+		fileName, countMatch := element.GetRateFields()
+		resultString += "<li><a href=\"#\">" + fileName + " got " + strconv.Itoa(countMatch) + " points !</a></li>"
 	}
 	resultString += "</ol>"
 	resultPage := fmt.Sprintf(htmlPage, resultString)
@@ -142,28 +141,22 @@ func main() {
 	if len(os.Args) < 4 {
 		log.Fatalln("Invalid number of arguments. Example of call: /path/to/index/file ip-address port")
 	}
-
 	ip := os.Args[2]
 	port := os.Args[3]
 	mux := http.NewServeMux()
-
 	data, err := file.ReadFile(os.Args[1])
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 	i = index.NewInvertIndex()
 	listOfFiles = i.ParseIndexFile(data)
-
 	mux.HandleFunc("/", handler)
-
 	server := http.Server{
 		Addr:         ip + ":" + port,
 		Handler:      mux,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
-
 	log.Println("[ + ] starting server at ", ip, ":", port)
 	server.ListenAndServe()
 }
