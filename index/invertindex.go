@@ -10,7 +10,13 @@ import (
 
 	"github.com/bbalet/stopwords"
 	"github.com/polisgo2020/search-KudinovKV/file"
+	zl "github.com/rs/zerolog/log"
 )
+
+type Rate struct {
+	fileName   string
+	countMatch int
+}
 
 type InvertIndex struct {
 	index  map[string][]string
@@ -18,17 +24,17 @@ type InvertIndex struct {
 	mutex  *sync.Mutex
 }
 
-type Rate struct {
-	fileName   string
-	countMatch int
+// GetRateCount return count field struct Rate
+func (r Rate) GetRateCount() int {
+	return r.countMatch
 }
 
-// GetRateFields return fields struct Rate
-func (r Rate) GetRateFields() (fileName string, countMatch int) {
-	return r.fileName, r.countMatch
+// GetRateName return name field struct Rate
+func (r Rate) GetRateName() string {
+	return r.fileName
 }
 
-// Listener got tokens from cannel and added to maps
+// Listener got tokens from channel and added to maps
 func (i InvertIndex) Listener() {
 	defer i.mutex.Unlock()
 	i.mutex.Lock()
@@ -60,8 +66,7 @@ func Contains(arr []string, element string) bool {
 
 // ParseIndexFile added index in map and return slice of files
 func (i InvertIndex) ParseIndexFile(data string) []string {
-	var listOfFiles []string
-
+	listOfFiles := []string{}
 	datastrings := strings.Split(data, "\n")
 	for _, correctstring := range datastrings {
 		if correctstring == "" {
@@ -76,14 +81,12 @@ func (i InvertIndex) ParseIndexFile(data string) []string {
 			}
 		}
 	}
-	//sort.Ints(listOfFiles)
 	return listOfFiles
 }
 
 // MakeSearch find in string tokens in the index map
-func (i InvertIndex) MakeSearch(in []string, listOfFiles []string) []Rate {
+func (i InvertIndex) MakeSearch(in, listOfFiles []string) []Rate {
 	out := []Rate{}
-
 	for k, filename := range listOfFiles {
 		count := 0
 		for j := range in {
@@ -91,7 +94,10 @@ func (i InvertIndex) MakeSearch(in []string, listOfFiles []string) []Rate {
 				count++
 			}
 		}
-		out = append(out, Rate{fileName: filename, countMatch: count})
+		out = append(out, Rate{
+			fileName:   filename,
+			countMatch: count,
+		})
 	}
 
 	sort.Slice(out, func(i, j int) bool {
@@ -100,7 +106,7 @@ func (i InvertIndex) MakeSearch(in []string, listOfFiles []string) []Rate {
 	return out
 }
 
-// MakeBuild read files and added token in the cannel
+// MakeBuild read files and added token in the channel
 func (i InvertIndex) MakeBuild(dirname string, f os.FileInfo, wg *sync.WaitGroup) {
 	defer wg.Done()
 	data, err := file.ReadFile(filepath.Join(dirname, f.Name()))
@@ -128,7 +134,8 @@ func (i InvertIndex) WriteResult(outputFilename string) {
 	}
 	err := file.WriteFile(resultString, outputFilename)
 	if err != nil {
-		log.Fatalln(err)
+		zl.Fatal().Err(err).
+			Msg("Cant write in index file")
 	}
 }
 
@@ -138,9 +145,10 @@ func (i InvertIndex) addToken(token, fileName string) {
 	b := Contains(i.index[token], fileName)
 	if !ok || !b {
 		i.index[token] = append(i.index[token], fileName)
-		log.Println("Token: ", token)
-		log.Println("Value: ", i.index[token])
-		log.Println()
+		zl.Debug().
+			Msgf("Token: %s", token)
+		zl.Debug().
+			Msgf("Value: %v", i.index[token])
 	}
 }
 

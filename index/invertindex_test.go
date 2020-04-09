@@ -5,6 +5,11 @@ import (
 	"testing"
 )
 
+/*
+	go test -coverprofile=cover.out
+	go tool cover -html=cover.out -o cover.html
+*/
+
 var (
 	i           *InvertIndex
 	in          *InvertIndex
@@ -71,7 +76,7 @@ func TestListener(t *testing.T) {
 	(*expected).index["newtoken"] = append((*expected).index["newtoken"], "1.txt")
 	(*expected).index["newtoken"] = append((*expected).index["newtoken"], "2.txt")
 
-	in.dataCh <- []string{"newtoken", "2"}
+	in.dataCh <- []string{"newtoken", "2.txt"}
 	close(in.dataCh)
 	in.mutex.Lock()
 	if !reflect.DeepEqual((*in).index["newtoken"], (*expected).index["newtoken"]) {
