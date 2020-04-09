@@ -1,7 +1,9 @@
 package config
 
 import (
-	"os"
+	"fmt"
+
+	"github.com/caarlos0/env"
 )
 
 type Config struct {
@@ -11,8 +13,10 @@ type Config struct {
 
 // LoadConfig return struct config
 func LoadConfig() Config {
-	return Config{
-		Listen:   os.Getenv("LISTEN"),
-		LogLevel: os.Getenv("LOG_LEVEL"),
+	cfg := Config{}
+	err := env.Parse(&cfg)
+	if err != nil {
+		fmt.Printf("%+v\n", err)
 	}
+	return cfg
 }

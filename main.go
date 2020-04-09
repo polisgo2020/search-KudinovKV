@@ -18,6 +18,8 @@ import (
 var (
 	listOfFiles []string
 	i           *index.InvertIndex
+	searchTmpl  *template.Template
+	indexTmpl   *template.Template
 )
 
 func searchPage(w http.ResponseWriter, r *http.Request) {
@@ -29,13 +31,18 @@ func searchPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := i.MakeSearch(index.PrepareTokens(tokens), listOfFiles)
-	tmpl := template.Must(template.ParseFiles("template/search.html"))
-	tmpl.Execute(w,
+
+	err := searchTmpl.ExecuteTemplate(w, "search.html",
 		struct {
 			Result []index.Rate
 		}{
 			out,
 		})
+
+	if err != nil {
+		zl.Fatal().Err(err).
+			Msg("Can't execute search template")
+	}
 }
 
 func logMiddleware(next http.Handler) http.Handler {
@@ -51,25 +58,39 @@ func logMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func indexPage(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("template/index.html"))
-	tmpl.Execute(w, struct{}{})
-}
-
 func searchMain(cfg config.Config, filename string) {
+
 	data, err := file.ReadFile(filename)
 	if err != nil {
-		zl.Fatal().Err(err).Msg("Can't read index file ")
+		zl.Fatal().Err(err).
+			Msg("Can't read index file ")
+	}
+	searchTmpl, err = template.ParseFiles("template/search.html")
+	if err != nil {
+		zl.Fatal().Err(err).
+			Msg("Can't parse search template")
+	}
+
+	indexTmpl, err = template.ParseFiles("template/index.html")
+	if err != nil {
+		zl.Fatal().Err(err).
+			Msg("Can't parse index template")
 	}
 
 	i = index.NewInvertIndex()
 	listOfFiles = i.ParseIndexFile(data)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", indexPage)
 	mux.HandleFunc("/search", searchPage)
-	siteHandler := logMiddleware(mux)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		err = indexTmpl.ExecuteTemplate(w, "index.html", struct{}{})
+		if err != nil {
+			zl.Fatal().Err(err).
+				Msg("Can't execute index template")
+		}
+	})
 
+	siteHandler := logMiddleware(mux)
 	server := http.Server{
 		Addr:         cfg.Listen,
 		Handler:      siteHandler,
