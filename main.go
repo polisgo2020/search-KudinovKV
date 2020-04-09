@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"sync"
+	"path/filepath"
 	"time"
 
 	"github.com/polisgo2020/search-KudinovKV/config"
@@ -88,14 +88,13 @@ func buildMain(dirName, resultFilename string) {
 		zl.Fatal().Err(err).
 			Msg("Can't open dir")
 	}
-	wg := &sync.WaitGroup{}
-	maps := index.NewInvertIndex()
+	i := index.NewInvertIndex()
 	for _, f := range files {
-		wg.Add(1)
-		go maps.MakeBuild(dirName, f, wg)
+		i.GetWg().Add(1)
+		go i.MakeBuild(filepath.Join(dirName, f.Name()))
 	}
-	wg.Wait()
-	maps.WriteResult(resultFilename)
+	i.GetWg().Wait()
+	i.WriteResult(resultFilename)
 }
 
 func main() {
