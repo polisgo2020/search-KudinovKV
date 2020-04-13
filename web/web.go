@@ -52,6 +52,7 @@ func StartServer(cfg config.Config, data string) {
 
 	zl.Debug().
 		Msg("[ + ] starting server at " + cfg.Listen)
+
 	server.ListenAndServe()
 }
 
