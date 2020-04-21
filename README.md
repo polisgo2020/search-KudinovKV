@@ -14,8 +14,10 @@
 
 _Build index :_
 
-> main.exe build "path/to/dir" "output/filename"
+1. > main.exe build file "path/to/dir" "output/filename"
+2. > main.exe build database "path/to/dir"
 
 _Search in index:_
 
-> main.exe search "index/filename"
+1. > main.exe search "index/filename"
+2. > main.exe search database

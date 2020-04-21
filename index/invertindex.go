@@ -30,6 +30,8 @@ which builds Rate struct.
 package index
 
 import (
+	"github.com/go-pg/pg/v9"
+	"github.com/polisgo2020/search-KudinovKV/database"
 	"log"
 	"sort"
 	"strings"
@@ -49,7 +51,7 @@ type InvertIndex struct {
 	index  map[string][]string
 	dataCh chan []string
 	mutex  *sync.Mutex
-	wg *sync.WaitGroup
+	wg     *sync.WaitGroup
 }
 
 // GetRateCount return countMatch struct Rate field
@@ -63,7 +65,7 @@ func (r Rate) GetRateName() string {
 }
 
 // GetWg return WaitGroup struct InvertIndex field
-func (i InvertIndex) GetWg() *sync.WaitGroup{
+func (i InvertIndex) GetWg() *sync.WaitGroup {
 	return i.wg
 }
 
@@ -82,7 +84,7 @@ func NewInvertIndex() *InvertIndex {
 		index:  map[string][]string{},
 		dataCh: make(chan []string),
 		mutex:  &sync.Mutex{},
-		wg: &sync.WaitGroup{},
+		wg:     &sync.WaitGroup{},
 	}
 	go i.Listener()
 	return &i
@@ -140,6 +142,37 @@ func (i InvertIndex) MakeSearch(in, listOfFiles []string) []Rate {
 	return out
 }
 
+// MakeSearchDB
+func (i InvertIndex) MakeSearchDB(tokens []string, pg *pg.DB) []Rate {
+	out := []Rate{}
+	for _, token := range tokens {
+		i, err := database.GetFiles(token, pg)
+		if err != nil {
+			zl.Fatal().Err(err).
+				Msg("Can't select in database")
+		}
+		for _, element := range i {
+			flag := 0
+			for i, value := range out {
+				if strings.EqualFold(value.fileName, element.FileName) {
+					out[i].countMatch += 1
+					flag = 1
+				}
+			}
+			if flag == 0 {
+				out = append(out, Rate{
+					fileName:   element.FileName,
+					countMatch: 1,
+				})
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].countMatch > out[j].countMatch
+	})
+	return out
+}
+
 // MakeBuild read files and added token in the channel
 func (i InvertIndex) MakeBuild(path string) {
 	defer i.wg.Done()
@@ -170,6 +203,26 @@ func (i InvertIndex) WriteResult(outputFilename string) {
 	if err != nil {
 		zl.Fatal().Err(err).
 			Msg("Cant write in index file")
+	}
+}
+
+// WriteResultDB write maps in database
+func (i InvertIndex) WriteResultDB(pg *pg.DB) {
+	defer i.mutex.Unlock()
+	close(i.dataCh)
+	i.mutex.Lock()
+	var newIndexDB []database.Index
+	for token, fileNames := range i.index {
+		for _, fileName := range fileNames {
+			newIndexDB = append(newIndexDB, database.Index{
+				FileName: fileName,
+				Token:    token,
+			})
+		}
+	}
+	if err := database.AddIndex(newIndexDB, pg); err != nil {
+		zl.Fatal().Err(err).
+			Msg("Cant write in database")
 	}
 }
 
