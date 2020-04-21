@@ -142,7 +142,7 @@ func (i InvertIndex) MakeSearch(in, listOfFiles []string) []Rate {
 	return out
 }
 
-// MakeSearchDB
+// MakeSearchDB search tokens in database
 func (i InvertIndex) MakeSearchDB(tokens []string, pg *pg.DB) []Rate {
 	out := []Rate{}
 	for _, token := range tokens {
