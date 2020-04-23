@@ -39,7 +39,7 @@ func InitDB(toConnect string, createOrNot bool) (*pg.DB, error) {
 		return nil, err
 	}
 	pgdb := pg.Connect(pgOpt)
-	if createOrNot == true {
+	if createOrNot {
 		_, err = pgdb.Exec(`
 		CREATE TABLE public.Index 
 		(

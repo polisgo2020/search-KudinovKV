@@ -148,8 +148,9 @@ func (i InvertIndex) MakeSearchDB(tokens []string, pg *pg.DB) []Rate {
 	for _, token := range tokens {
 		i, err := database.GetFiles(token, pg)
 		if err != nil {
-			zl.Fatal().Err(err).
-				Msg("Can't select in database")
+			zl.Debug().
+				Msgf("Can't select in database , %v", err)
+			return nil
 		}
 		for _, element := range i {
 			flag := 0
