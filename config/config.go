@@ -6,7 +6,7 @@ import (
 )
 
 type Config struct {
-	Listen   string `env:"LISTEN" envDefault:"localhost:8080"`
+	Listen   string `env:"LISTEN" envDefault:"localhost:8081"`
 	LogLevel string `env:"LOG_LEVEL" envDefault:"debug"`
 	PgSQL    string `env:"PGSQL" envDefault:"postgres://postgres:123456@localhost:5432/db?sslmode=disable"`
 }

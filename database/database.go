@@ -40,7 +40,7 @@ func InitDB(toConnect string, createOrNot bool) (*pg.DB, error) {
 	}
 	pgdb := pg.Connect(pgOpt)
 	if createOrNot == true {
-		_, err = pgdb.Exec(` DROP TABLE public.Index;
+		_, err = pgdb.Exec(`
 		CREATE TABLE public.Index 
 		(
 			"fileName" text,

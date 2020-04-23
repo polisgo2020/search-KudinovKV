@@ -70,6 +70,9 @@ func main() {
 	zerolog.SetGlobalLevel(logLevel)
 	zl.Logger = zl.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
+	zl.Debug().
+		Msgf("%v", os.Args)
+
 	if len(os.Args) < 2 {
 		zl.Fatal().
 			Msg(exampleBuild)
