@@ -3,6 +3,7 @@ package index
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 /*
@@ -37,17 +38,25 @@ func TestContains(t *testing.T) {
 
 func TestParseIndexFile(t *testing.T) {
 	in := string("is:0.txt,1.txt,2.txt\na:2.txt\nbanana:2.txt\nit:0.txt,1.txt,2.txt\nwhat:0.txt,1.txt\n")
-	expected := []string{"0.txt", "1.txt", "2.txt"}
-	actual := i.ParseIndexFile(in)
-	if !reflect.DeepEqual(actual, expected) {
-		t.Errorf("%v is not equal to expected %v", actual, expected)
+	expected := map[string][]string{
+		"is":     []string{"0.txt", "1.txt", "2.txt"},
+		"a":      []string{"2.txt"},
+		"banana": []string{"2.txt"},
+		"it":     []string{"0.txt", "1.txt", "2.txt"},
+		"what":   []string{"0.txt", "1.txt"},
 	}
-	listOfFiles = actual
+	i.ParseIndexFile(in)
+	if !reflect.DeepEqual(i.index, expected) {
+		t.Errorf("%v is not equal to expected %v", i.index, expected)
+	}
 }
-func TestMakeSearch(t *testing.T) {
+func TestGet(t *testing.T) {
 	in := []string{"banana", "is"}
 	expected := []Rate{{"2.txt", 2}, {"0.txt", 1}, {"1.txt", 1}}
-	actual := i.MakeSearch(in, listOfFiles)
+	actual, err := i.Get(in)
+	if err != nil {
+		t.Errorf("%v is not equal to expected %v", actual, expected)
+	}
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("%v is not equal to expected %v", actual, expected)
 	}
@@ -62,10 +71,10 @@ func TestPrepareTokens(t *testing.T) {
 	}
 }
 
-func TestAddToken(t *testing.T) {
+func TestAdd(t *testing.T) {
 	expected := NewInvertIndex()
 	(*expected).index["newtoken"] = append((*expected).index["newtoken"], "1.txt")
-	in.addToken("newtoken", "1.txt")
+	in.Add("newtoken", "1.txt")
 	if !reflect.DeepEqual((*in).index["newtoken"], (*expected).index["newtoken"]) {
 		t.Errorf("%v is not equal to expected %v", in, expected)
 	}
@@ -77,13 +86,11 @@ func TestListener(t *testing.T) {
 	(*expected).index["newtoken"] = append((*expected).index["newtoken"], "2.txt")
 
 	in.dataCh <- []string{"newtoken", "2.txt"}
+	time.Sleep(1 * time.Second)
 	close(in.dataCh)
-	in.mutex.Lock()
 	if !reflect.DeepEqual((*in).index["newtoken"], (*expected).index["newtoken"]) {
 		t.Errorf("%v is not equal to expected %v", *in, *expected)
 	}
-	in.mutex.Unlock()
-
 	close(expected.dataCh)
 	close(i.dataCh)
 }

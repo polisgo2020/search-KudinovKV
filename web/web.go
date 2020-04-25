@@ -1,6 +1,7 @@
 package web
 
 import (
+	"github.com/go-pg/pg/v9"
 	"html/template"
 	"net/http"
 	"time"
@@ -13,11 +14,12 @@ import (
 var (
 	searchTmpl  *template.Template
 	listOfFiles []string
+	pgdb        *pg.DB
 	i           *index.InvertIndex
 )
 
 // StartServer parse html templates, set handle func,set log middleware, create index and started server
-func StartServer(cfg config.Config, data string) {
+func StartServer(cfg config.Config, data string, db *pg.DB) {
 	indexTmpl, err := template.ParseFiles("web/index.html")
 	if err != nil {
 		zl.Fatal().Err(err).
@@ -30,7 +32,13 @@ func StartServer(cfg config.Config, data string) {
 	}
 
 	i = index.NewInvertIndex()
-	listOfFiles = i.ParseIndexFile(data)
+	if db == nil {
+		listOfFiles = i.ParseIndexFile(data)
+		pgdb = nil
+	} else {
+		pgdb = db
+		listOfFiles = nil
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/search", searchPage)
@@ -61,11 +69,16 @@ func searchPage(w http.ResponseWriter, r *http.Request) {
 	tokens := r.FormValue("tokens")
 	if tokens == "" {
 		zl.Debug().
-			Msg("Incorrect request, cant find tokens field")
+			Msg("Incorrect request, can't find tokens field")
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	out := i.MakeSearch(index.PrepareTokens(tokens), listOfFiles)
+	var out []index.Rate
+	if listOfFiles == nil {
+		out = i.MakeSearchDB(index.PrepareTokens(tokens), pgdb)
+	} else {
+		out = i.MakeSearch(index.PrepareTokens(tokens), listOfFiles)
+	}
 
 	err := searchTmpl.ExecuteTemplate(w, "search.html",
 		struct {
